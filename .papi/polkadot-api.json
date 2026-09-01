@@ -1,0 +1,12 @@
+{
+  "version": 0,
+  "descriptorPath": ".papi/descriptors",
+  "entries": {
+    "paseo_asset_hub": {
+      "wsUrl": "wss://paseo-asset-hub-next-rpc.polkadot.io",
+      "metadata": ".papi/metadata/paseo_asset_hub.scale",
+      "genesis": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
+      "codeHash": "0xbe7baeef2ed57543b860933d78ee5a1dc3b46a74aa42250bd3f24bfdd1ce06b8"
+    }
+  }
+}
