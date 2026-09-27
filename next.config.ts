@@ -3,6 +3,9 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   output: 'export',
+  // Dev only: the host app loads this over the local network rather than from localhost, and Next
+  // rejects dev requests from an origin it was not told about. Add each machine that serves it.
+  allowedDevOrigins: ["192.168.1.59"],
   images: {
     unoptimized: true,
   },

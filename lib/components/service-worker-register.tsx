@@ -29,11 +29,17 @@ export function ServiceWorkerRegister() {
     // registration in dev and proactively unregister any previous SW + caches
     // so the page picks up fresh bundles from the dev server.
     if (process.env.NODE_ENV !== 'production') {
-      serviceWorker.getRegistrations().then((regs) => {
-        regs.forEach((r) => r.unregister());
-      });
-      if ('caches' in window) {
-        caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+      // Android WebView carries the `serviceWorker` key but not every method behind it, so the
+      // checks above pass and the call itself throws. Guarded like the registration path below.
+      try {
+        serviceWorker.getRegistrations().then((regs) => {
+          regs.forEach((r) => r.unregister());
+        });
+        if ('caches' in window) {
+          caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+        }
+      } catch (error) {
+        console.info('Service Worker cleanup skipped:', error);
       }
       return;
     }

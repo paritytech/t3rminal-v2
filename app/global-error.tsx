@@ -28,7 +28,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en" className={fontVariablesClassName}>
+    <html lang="en" className={fontVariablesClassName} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

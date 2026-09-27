@@ -46,7 +46,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={fontVariablesClassName}>
+    // THEME_INIT_SCRIPT stamps data-theme before hydration, so the server markup never carries the
+    // attribute the client finds. That difference is the point of the script, not a mismatch to fix.
+    <html lang="en" className={fontVariablesClassName} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

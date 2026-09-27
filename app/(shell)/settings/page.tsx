@@ -13,6 +13,7 @@ import {
   Shapes,
   Store,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
@@ -45,6 +46,7 @@ interface SettingsRow {
 
 // Always available — private (pre-merchant) use needs these too.
 const BASE_ROWS: SettingsRow[] = [
+  { href: "/settings/balance", icon: Wallet, title: "Balance" },
   { href: "/settings/payment-method", icon: Coins, title: "Payment Method" },
   { href: "/settings/details", icon: Info, title: "Details" },
   { href: "/settings/report-issue", icon: Bug, title: "Help us fix an issue" },
@@ -53,6 +55,7 @@ const BASE_ROWS: SettingsRow[] = [
 // Merchant tooling — unlocked by completing the Become a Merchant flow.
 // Report Storage lost its entry — reports now live on Home → Reports.
 const MERCHANT_ROWS: SettingsRow[] = [
+  { href: "/settings/balance", icon: Wallet, title: "Balance" },
   { href: "/settings/merchant-profile", icon: UserRound, title: "Merchant Profile" },
   { href: "/settings/receipt", icon: ReceiptText, title: "Receipt" },
   { href: "/settings/items", icon: Shapes, title: "Show Items in Checkout" },
