@@ -24,6 +24,19 @@ export interface ReceiptData {
   subtotal?: string;
   /** Tip amount added on top of the subtotal. */
   tip?: string;
+  /** When the sale happened. Wins over the saleId's ULID time, which a coins
+   *  sale (a hex payment id) does not have. */
+  timestamp?: Date;
+}
+
+/**
+ * The time a receipt states: the sale's own when the caller has it, else the
+ * one encoded in a ULID saleId, else now. Without the first, a coins sale's
+ * receipt (and its QR) said whenever it was rendered.
+ */
+function receiptTimestamp(data: ReceiptData): Date {
+  if (data.timestamp) return new Date(data.timestamp);
+  return (data.saleId ? getTimestampFromSaleId(data.saleId) : null) ?? new Date();
 }
 
 /**
@@ -53,10 +66,7 @@ export function useReceiptGenerator() {
     setIsGenerating(true);
     setError(null);
 
-    // Extract timestamp from SaleId ULID (canonical time), fallback to current time
-    const timestamp = data.saleId
-      ? getTimestampFromSaleId(data.saleId) ?? new Date()
-      : new Date();
+    const timestamp = receiptTimestamp(data);
 
     try {
       // Try to generate SVG with QR code
@@ -122,12 +132,10 @@ export function useReceiptGenerator() {
    * Build the same save-receipt deeplink embedded as the QR on the printed
    * receipt. Sharing this value (rather than a `/receipt/<id>` URL) lets a
    * scanner — or the Polkadot host opening it — rebuild the receipt offline.
-   * Timestamp is derived from the SaleId ULID so it matches the rendered QR.
+   * Timestamped by receiptTimestamp, so it matches the rendered QR.
    */
   const buildReceiptQrValue = (data: ReceiptData): string => {
-    const timestamp = data.saleId
-      ? getTimestampFromSaleId(data.saleId) ?? new Date()
-      : new Date();
+    const timestamp = receiptTimestamp(data);
     return buildReceiptDeeplink(
       {
         amount: data.amount,
@@ -159,10 +167,7 @@ export function useReceiptGenerator() {
     setIsGenerating(true);
     setError(null);
 
-    // Extract timestamp from SaleId ULID (canonical time), fallback to current time
-    const timestamp = data.saleId
-      ? getTimestampFromSaleId(data.saleId) ?? new Date()
-      : new Date();
+    const timestamp = receiptTimestamp(data);
 
     try {
       await generateReceipt({

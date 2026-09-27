@@ -43,8 +43,12 @@ interface SettingsRow {
 // — the old back-office/admin-QR binding flow is retired (its page stays
 // routable by URL for legacy setups, but has no menu entry).
 
-// Always available — private (pre-merchant) use needs these too.
+// Always available — private (pre-merchant) use needs these too. Receipt is
+// here too: what the receipt says (business name, address, tax ID) is what
+// the customer's Pocket Receipts card and history show, so it must be
+// editable without the parked Become a Merchant onboarding.
 const BASE_ROWS: SettingsRow[] = [
+  { href: "/settings/receipt", icon: ReceiptText, title: "Receipt" },
   { href: "/settings/payment-method", icon: Coins, title: "Payment Method" },
   { href: "/settings/details", icon: Info, title: "Details" },
   { href: "/settings/report-issue", icon: Bug, title: "Help us fix an issue" },
@@ -70,8 +74,8 @@ export default function SettingsPage() {
   const merchant = useMerchantProfile();
   const [appearance, setAppearance] = useAppearance();
 
-  // Private use gets the bare menu; the full merchant menu (profile, receipt,
-  // report storage) unlocks with a completed onboarding.
+  // Private use gets the bare menu (with Receipt); the full merchant menu
+  // (profile, items) unlocks with a completed onboarding.
   const rows = merchant.completed ? MERCHANT_ROWS : BASE_ROWS;
 
   return (

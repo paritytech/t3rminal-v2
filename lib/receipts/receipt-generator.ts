@@ -313,24 +313,33 @@ export function generateReceiptSVG(data: ReceiptData): string {
 }
 
 /**
- * W3sPay product DOTNS host that handles the save-receipt deeplink. The
- * Polkadot app routes `*.dot` deeplinks to its in-app browser, opening the
- * W3sPay SPA which reads the receipt from the URL fragment.
+ * The Pocket Receipts product that takes the
+ * receipt QR: the customer scans it with the Polkadot app, the host opens the
+ * product at the deeplink's path and query, and the receipt lands in their
+ * history and on the product's Pocket card. Set NEXT_PUBLIC_RECEIPT_PRODUCT to
+ * point a build at another deployment of it (e.g. a `.testnet` name).
  */
-export const SAVE_RECEIPT_DEEPLINK_HOST = "w3spay.dot"
+export const SAVE_RECEIPT_DEEPLINK_HOST =
+  process.env.NEXT_PUBLIC_RECEIPT_PRODUCT?.trim() || "pocketreceipts01.paseo"
+
+/** The product route that saves a receipt. A plain path: the product's host
+ *  serves its SPA for any extensionless path. */
+export const SAVE_RECEIPT_DEEPLINK_PATH = "/r"
 
 /**
  * Build the save-receipt deeplink carried by the receipt QR:
  *
- *   polkadotapp://<host>/#/save-receipt?v=1&id=…&a=…&as=…&c=…&t=…&ts=…
+ *   polkadotapp://<host>/r?v=1&id=…&a=…&as=…&c=…&t=…&ts=…
  *     [&bn=…][&a1=…][&a2=…][&tel=…]&i=<name>|<qty>|<unitPrice>[&i=…]
- *     [&tp=…][&bh=…][&bk=…][&m=…]
+ *     [&bh=…][&bk=…][&m=…][&tp=…]
  *
- * Route + params live in the URL FRAGMENT so the in-app browser serves the
- * W3sPay SPA entry — a path segment would 404 there. Keys are abbreviated for
- * QR density; each repeated `i` is `name|quantity|unitPrice`. `URLSearchParams`
- * owns the `+`/`%XX` encoding. `id` (saleId) is required by the reader; a sale
- * minted without one yields a QR the app rejects.
+ * The Polkadot app's scanner routes `polkadotapp://<name>.<tld>/…` to that
+ * product (the in-app scanner on iOS accepts only this scheme), rewriting it to
+ * https and keeping the path and query. Keys are abbreviated for QR density;
+ * each repeated `i` is `name|quantity|unitPrice`. `URLSearchParams` owns the
+ * `+`/`%XX` encoding. `id` (saleId) is required by the reader; a sale minted
+ * without one yields a QR the app rejects. `c` and `t` are legacy: the reader
+ * ignores them.
  */
 export function buildReceiptDeeplink(
   data: ReceiptData,
@@ -359,7 +368,7 @@ export function buildReceiptDeeplink(
   // Tip rides as a decimal `tp` only when present — `a` is already the grand
   // total (subtotal + tip), so the reader derives the subtotal as `a − tp`.
   if (data.tip != null && Number(data.tip) > 0) params.set("tp", data.tip)
-  return `polkadotapp://${host}/#/save-receipt?${params.toString()}`
+  return `polkadotapp://${host}${SAVE_RECEIPT_DEEPLINK_PATH}?${params.toString()}`
 }
 
 export async function generateReceiptSVGWithQR(data: ReceiptData): Promise<string> {

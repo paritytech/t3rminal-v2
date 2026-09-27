@@ -118,6 +118,8 @@ export default function HistoryPage() {
       blockHash: sale.blockHash,
       assetId: sale.assetId,
       saleId: sale.saleId,
+      // The original sale time, not "now" (a coins sale id carries none).
+      timestamp: sale.timestamp,
       items: sale.items,
       subtotal: subtotalOf(sale),
       tip: sale.tip,
@@ -136,6 +138,8 @@ export default function HistoryPage() {
       blockHash: sale.blockHash,
       assetId: sale.assetId,
       saleId: sale.saleId,
+      // The original sale time, not "now" (a coins sale id carries none).
+      timestamp: sale.timestamp,
       items: sale.items,
       subtotal: subtotalOf(sale),
       tip: sale.tip,
@@ -322,28 +326,22 @@ export default function HistoryPage() {
 
             {/* Actions — rows on the page surface, so they hover to the
                 container step; the destructive one stays quiet at rest.
-                Receipt tooling and refunds are parked behind
-                FEATURES.receipts / FEATURES.refunds for R1. */}
-            {(FEATURES.receipts || FEATURES.refunds) && (
-              <div className="mb-2 -mx-2">
-                {FEATURES.receipts && (
-                  <>
-                    <button
-                      onClick={() => handleViewReceipt(sale)}
-                      className="w-full flex items-center gap-3 px-2 py-3 rounded-medium text-label-l text-fg-primary hover:bg-surface-container transition-colors"
-                    >
-                      <ReceiptText className="size-5" aria-hidden />
-                      <span>Review Receipt</span>
-                    </button>
-                    <button
-                      onClick={() => setShowShareQr(true)}
-                      className="w-full flex items-center gap-3 px-2 py-3 rounded-medium text-label-l text-fg-primary hover:bg-surface-container transition-colors"
-                    >
-                      <QrCode className="size-5" aria-hidden />
-                      <span>Share Receipt via QR</span>
-                    </button>
-                  </>
-                )}
+                Refunds are parked behind FEATURES.refunds for R1. */}
+            <div className="mb-2 -mx-2">
+                <button
+                  onClick={() => handleViewReceipt(sale)}
+                  className="w-full flex items-center gap-3 px-2 py-3 rounded-medium text-label-l text-fg-primary hover:bg-surface-container transition-colors"
+                >
+                  <ReceiptText className="size-5" aria-hidden />
+                  <span>Review Receipt</span>
+                </button>
+                <button
+                  onClick={() => setShowShareQr(true)}
+                  className="w-full flex items-center gap-3 px-2 py-3 rounded-medium text-label-l text-fg-primary hover:bg-surface-container transition-colors"
+                >
+                  <QrCode className="size-5" aria-hidden />
+                  <span>Share Receipt via QR</span>
+                </button>
                 {FEATURES.refunds && (
                   <button
                     onClick={() => setActionNote("Refunds aren't available yet.")}
@@ -353,8 +351,7 @@ export default function HistoryPage() {
                     <span>Refund</span>
                   </button>
                 )}
-              </div>
-            )}
+            </div>
             {actionNote && (
               <p className="text-body-s text-fg-error">{actionNote}</p>
             )}

@@ -68,11 +68,29 @@ NEXT_PUBLIC_FEATURE_BECOME_MERCHANT=1 npm run build
 | --- | --- | --- | --- |
 | `becomeMerchant` | `NEXT_PUBLIC_FEATURE_BECOME_MERCHANT` | off | "Become a Merchant" entry points (Home tile, Settings card) |
 | `nfcTapToPay` | `NEXT_PUBLIC_FEATURE_NFC_TAP_TO_PAY` | off | NFC tap-to-pay on the payment QR screen (HCE emit + banner text) |
-| `receipts` | `NEXT_PUBLIC_FEATURE_RECEIPTS` | off | Review / Print / Share-via-QR receipt actions after a sale and in History |
 | `refunds` | `NEXT_PUBLIC_FEATURE_REFUNDS` | off | Refund entry points after a sale and in History |
 
 The values are inlined by the static export, so a flag can't change at
 runtime — rebuild to toggle.
+
+## Receipts
+
+Review Receipt and Share Receipt via QR are always on, after a sale and in
+History. The receipt QR is a deeplink into the Pocket Receipts product:
+
+```text
+polkadotapp://pocketreceipts01.paseo/r?v=1&id=…&a=…&as=…&ts=…&bn=…&i=<name>|<qty>|<unitPrice>…
+```
+
+The customer scans it with the Polkadot app. The receipt then lands in that
+product's history and on its Pocket card. Every receipt states the time the
+payment landed, and a coins sale does too. `lib/receipts/receipt-generator.ts`
+(`buildReceiptDeeplink`) builds the link, and `tests/receipt-deeplink.test.ts`
+pins it. To point a build at another deployment of the product, set:
+
+```sh
+NEXT_PUBLIC_RECEIPT_PRODUCT=myreceipts.testnet npm run build
+```
 
 ## Deploy
 

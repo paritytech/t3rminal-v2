@@ -157,6 +157,10 @@ function TerminalPageInner() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [saleId, setSaleId] = useState<string | null>(null);
   const [paymentReceived, setPaymentReceived] = useState<PaymentDetected | null>(null);
+  // When the payment landed: the time every receipt of this sale states (the
+  // SVG, the PDF, the print and the share QR), so a coins sale, whose id holds
+  // no time, does not stamp its receipt with whenever it happens to render.
+  const [paymentReceivedAt, setPaymentReceivedAt] = useState<Date | null>(null);
   // Partial credit progress for multi-group offboards: set while the running
   // total is below the requested amount, cleared once the sale completes.
   const [partial, setPartial] = useState<PartialPayment | null>(null);
@@ -310,7 +314,9 @@ function TerminalPageInner() {
         "journey.sale_id": payment.saleId,
         "journey.block_number": payment.blockNumber ?? 0,
       });
+      const receivedAt = new Date();
       setPaymentReceived(payment);
+      setPaymentReceivedAt(receivedAt);
       setSaleId(payment.saleId);
 
       // Persist the merchant address that actually received the payment —
@@ -347,7 +353,7 @@ function TerminalPageInner() {
           transactionHash: payment.blockHash,
           blockNumber: payment.blockNumber,
           blockHash: payment.blockHash,
-          timestamp: new Date(),
+          timestamp: receivedAt,
           type: 'incoming',
           items: receiptItems.length > 0 ? receiptItems : undefined,
           tip: tipDecimal,
@@ -378,6 +384,7 @@ function TerminalPageInner() {
         blockHash: payment.blockHash,
         assetId: ASSET_ID_STR,
         saleId: payment.saleId,
+        timestamp: receivedAt,
         items: receiptItems.length > 0 ? receiptItems : undefined,
         subtotal: subtotalDecimal,
         tip: tipDecimal,
@@ -434,7 +441,9 @@ function TerminalPageInner() {
       saleId: result.paymentId,
       chain: "paseo-individuality",
     };
+    const receivedAt = new Date();
     setPaymentReceived(payment);
+    setPaymentReceivedAt(receivedAt);
     setSaleId(result.paymentId);
     setCoinsShortfall(
       result.partial ? { requested: result.requestedAmount, credited: result.amount } : null,
@@ -460,7 +469,7 @@ function TerminalPageInner() {
         transactionHash: result.paymentId,
         blockNumber: 0,
         blockHash: result.paymentId,
-        timestamp: new Date(),
+        timestamp: receivedAt,
         // Final only when the host said so (or the claim settled partially,
         // which is final). Otherwise the watcher stamps it later.
         finalizedAt: result.finalized ? new Date() : undefined,
@@ -497,6 +506,7 @@ function TerminalPageInner() {
       blockHash: result.paymentId,
       assetId: ASSET_ID_STR,
       saleId: result.paymentId,
+      timestamp: receivedAt,
       items: receiptItems.length > 0 ? receiptItems : undefined,
       subtotal: subtotalDecimal,
       tip: tipDecimal,
@@ -716,6 +726,7 @@ function TerminalPageInner() {
     setNoteOpen(false);
     setFinalAmount("");
     setPaymentReceived(null);
+    setPaymentReceivedAt(null);
     setPartial(null);
     setCoinsShortfall(null);
     setSaleId(null);
@@ -766,6 +777,7 @@ function TerminalPageInner() {
       blockHash: paymentReceived.blockHash,
       assetId: ASSET_ID_STR,
       saleId: paymentReceived.saleId,
+      timestamp: paymentReceivedAt ?? undefined,
       items: receiptItems.length > 0 ? receiptItems : undefined,
       subtotal: subtotalDecimal,
       tip: tipDecimal,
@@ -800,6 +812,7 @@ function TerminalPageInner() {
         saleId: paymentReceived.saleId,
         terminalId: terminalId ?? undefined,
         merchantId: adminPayload?.merchantId,
+        timestamp: paymentReceivedAt ?? undefined,
         items: receiptItems.length > 0 ? receiptItems : undefined,
         subtotal: subtotalDecimal,
         tip: tipDecimal,
@@ -1505,11 +1518,9 @@ function TerminalPageInner() {
 
             {/* Secondary actions — a list of rows on the container surface, so
                 the row owns the hover (selection token) and the destructive
-                one stays quiet at rest. Receipt tooling and refunds are parked
-                behind FEATURES.receipts / FEATURES.refunds for R1. */}
-            {(FEATURES.receipts || FEATURES.refunds) && (
+                one stays quiet at rest. Refunds are parked behind
+                FEATURES.refunds for R1. */}
             <div className="mb-4 -mx-2">
-              {FEATURES.receipts && (
               <button
                 onClick={() => setTerminalState("receipt")}
                 className="w-full flex items-center gap-3 px-2 py-3 rounded-medium text-label-l text-fg-primary hover:bg-selection-container-hover transition-colors"
@@ -1517,8 +1528,7 @@ function TerminalPageInner() {
                 <ReceiptText className="size-5" aria-hidden />
                 <span>Review Receipt</span>
               </button>
-              )}
-              {FEATURES.receipts && printerAvailable && (
+              {printerAvailable && (
                 <button
                   onClick={handlePrintReceipt}
                   disabled={isPrintingReceipt}
@@ -1544,7 +1554,6 @@ function TerminalPageInner() {
               </button>
               )}
             </div>
-            )}
 
             {/* Feedback line. Success has no tint token — the nested surface
                 carries success-coloured text; error takes the error tint. */}
@@ -1559,7 +1568,7 @@ function TerminalPageInner() {
             )}
 
             {/* Done (the view's main action, pill) + share-QR (a circular icon
-                button, exempt from the pill count; receipts flag) */}
+                button, exempt from the pill count) */}
             <div className="flex gap-3">
               <Button
                 data-testid="btn-done"
@@ -1568,16 +1577,14 @@ function TerminalPageInner() {
               >
                 Done
               </Button>
-              {FEATURES.receipts && (
-                <Button
-                  variant="secondary"
-                  onClick={() => setTerminalState("share")}
-                  aria-label="Share receipt QR"
-                  className="size-14 rounded-full p-0"
-                >
-                  <QrCode className="size-6" />
-                </Button>
-              )}
+              <Button
+                variant="secondary"
+                onClick={() => setTerminalState("share")}
+                aria-label="Share receipt QR"
+                className="size-14 rounded-full p-0"
+              >
+                <QrCode className="size-6" />
+              </Button>
             </div>
           </main>
         </div>
@@ -1609,6 +1616,7 @@ function TerminalPageInner() {
           blockHash: paymentReceived.blockHash,
           assetId: ASSET_ID_STR,
           saleId: paymentReceived.saleId,
+          timestamp: paymentReceivedAt ?? undefined,
           items: shareReceiptItems.length > 0 ? shareReceiptItems : undefined,
           subtotal: subtotalDecimal,
           tip: tipDecimal,
