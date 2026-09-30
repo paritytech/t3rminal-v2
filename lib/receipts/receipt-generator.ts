@@ -320,7 +320,7 @@ export function generateReceiptSVG(data: ReceiptData): string {
  * point a build at another deployment of it (e.g. a `.testnet` name).
  */
 export const SAVE_RECEIPT_DEEPLINK_HOST =
-  process.env.NEXT_PUBLIC_RECEIPT_PRODUCT?.trim() || "receipts-pocket.paseo"
+  process.env.NEXT_PUBLIC_RECEIPT_PRODUCT?.trim() || "receipts.paseo"
 
 /** The product route that saves a receipt. A plain path: the product's host
  *  serves its SPA for any extensionless path. */

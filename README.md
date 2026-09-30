@@ -79,7 +79,7 @@ Review Receipt and Share Receipt via QR are always on, after a sale and in
 History. The receipt QR is a deeplink into the Pocket Receipts product:
 
 ```text
-polkadotapp://receipts-pocket.paseo/r?v=1&id=…&a=…&as=…&ts=…&bn=…&i=<name>|<qty>|<unitPrice>…
+polkadotapp://receipts.paseo/r?v=1&id=…&a=…&as=…&ts=…&bn=…&i=<name>|<qty>|<unitPrice>…
 ```
 
 The customer scans it with the Polkadot app. The receipt then lands in that
