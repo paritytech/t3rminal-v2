@@ -36,9 +36,9 @@ import { QRCodeSVG } from "qrcode.react";
 import { useQRGenerator } from "@/lib/hooks/use-qr-generator";
 import { usePaymentListener, type PaymentDetected, type PartialPayment } from "@/lib/hooks/use-payment-listener";
 import { useReceiptGenerator } from "@/lib/hooks/use-receipt-generator";
-import { useChainConnectivity } from "@/lib/hooks/use-chain-connectivity";
+import { useChainConnectivity, type UnreachableReason } from "@/lib/hooks/use-chain-connectivity";
 import { isChainReachable } from "@/lib/payments/chain-reachability";
-import { isHostPaymentsReachable } from "@/lib/payments/host-reachability";
+import { probeHostPayments } from "@/lib/payments/host-reachability";
 import { PUSD_ASSET_ID, PUSD_DECIMALS } from "@/lib/utils/asset-ids";
 import { useAssetSymbol, getAssetSymbol } from "@/lib/utils/asset-metadata";
 import { formatAmountFromPlanck, amountToPlanck } from "@/lib/utils/format";
@@ -51,7 +51,7 @@ import {
 } from "@/lib/items/pending-sale";
 import type { ReceiptItem } from "@/lib/receipts/receipt-generator";
 import { journeyTracker, captureError, recordPaymentOutcome } from "@/lib/telemetry";
-import { useAdminQrPayload } from "@/lib/config/admin-qr";
+import { useAdminQrPayload } from "@/lib/config/admin-qr-binding";
 import { watchForFinalization } from "@/lib/payments/finalization-watcher";
 import { usePaymentMethod } from "@/lib/config/payment-method";
 import {
@@ -176,9 +176,19 @@ function TerminalPageInner() {
   // pUSD through the chain itself — probe the path that will actually be
   // used. Until the method setting loads nothing is probed.
   const connectivity = useChainConnectivity({
-    probe: method === undefined ? null : useCoins ? isHostPaymentsReachable : isChainReachable,
+    probe: method === undefined ? null : useCoins ? probeHostPayments : isChainReachable,
   });
   const [connectivityError, setConnectivityError] = useState<string | null>(null);
+  // What to tell the merchant when a sale cannot be settled. "unsupported"
+  // gets its own words: the host answered, it just has no payments on this
+  // runtime (the Polkadot Android app's TrUAPI runtime, 2026-09-30), so a
+  // WiFi hint would send them chasing a problem that is not there.
+  const unreachableCopy = (reason: UnreachableReason | null, whenCharging: boolean): string =>
+    reason === "unsupported"
+      ? "This Polkadot app build can't take coin payments yet. Turn off “TrUAPI runtime (products)” in the Debug menu and restart the app."
+      : whenCharging
+        ? "No connection — can't reach the network to receive the payment. Check WiFi and try again."
+        : "Offline — can't reach the network to settle a sale.";
   // Items checkout mode (Settings → Show Items in Checkout). When enabled the
   // entry screen swaps to the item grid with an in-memory basket; the keypad
   // stays reachable as the "Amount" tab and feeds the basket as Custom Amount
@@ -475,9 +485,11 @@ function TerminalPageInner() {
         note: note.trim() || undefined,
       });
       journeyTracker.milestone("terminal-payment", "sale-saved");
-      if (!result.finalized) {
+      if (!result.finalized && result.topUpId) {
         // Fire-and-forget: survives this page unmounting, and is re-armed on
-        // the next launch for anything still confirming.
+        // the next launch for anything still confirming. No id means the host
+        // cannot report on this claim afterwards (the TrUAPI runtime), so
+        // there is nothing to follow.
         watchTopUpFinality({ saleId: result.paymentId, topUpIdHex: result.topUpId });
       }
     } catch (err) {
@@ -665,17 +677,15 @@ function TerminalPageInner() {
 
     // Don't hand the customer a QR we can't settle — confirm the chain is
     // reachable right now before showing it.
-    const reachable = await connectivity.check();
-    if (!reachable) {
+    const unreachable = await connectivity.check();
+    if (unreachable) {
       setIsGenerating(false);
       setTerminalState("input");
       // Items mode got here with keypad digits derived from the basket — drop
       // them so the Amount tab comes back clean; the basket itself is
       // untouched and re-chargeable.
       if (itemsMode && cart.length > 0) setAmountDigits("");
-      setConnectivityError(
-        "No connection — can't reach the network to receive the payment. Check WiFi and try again.",
-      );
+      setConnectivityError(unreachableCopy(unreachable, true));
       return;
     }
 
@@ -863,7 +873,7 @@ function TerminalPageInner() {
         className="rounded-nested bg-action-error px-4 py-3 text-center mt-3"
       >
         <p className="text-label-m text-fg-error">
-          {connectivityError ?? "Offline — can't reach the network to settle a sale."}
+          {connectivityError ?? unreachableCopy(connectivity.unreachableReason, false)}
         </p>
       </div>
     );
@@ -1196,7 +1206,7 @@ function TerminalPageInner() {
                 >
                   <p className="text-label-m text-fg-error">
                     {connectivityError ??
-                      "Offline — can't reach the network to settle a sale."}
+                      unreachableCopy(connectivity.unreachableReason, false)}
                   </p>
                 </div>
               )}

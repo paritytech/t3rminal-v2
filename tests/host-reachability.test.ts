@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isHostPaymentsReachable, type HostBalanceSubscription } from "@/lib/payments/host-reachability";
+import {
+  isHostPaymentsReachable,
+  isPaymentsUnsupported,
+  probeHostPayments,
+  type HostBalanceSubscription,
+} from "@/lib/payments/host-reachability";
 import { isProductWebSocketBlocked } from "@/lib/host/detect";
 
 function fakeHost(script: (onBalance: () => void, interrupt: (p: unknown) => void) => void) {
@@ -46,6 +51,32 @@ describe("isHostPaymentsReachable", () => {
     await expect(isHostPaymentsReachable(1000, { subscribeBalance: h.subscribeBalance, inHost: () => false })).resolves.toBe(false);
     await expect(isHostPaymentsReachable(1000, { subscribeBalance: h.subscribeBalance, online: () => false })).resolves.toBe(false);
     expect(h.subscribeBalance).not.toHaveBeenCalled();
+  });
+});
+
+describe("probeHostPayments — why it failed", () => {
+  it("reports 'unsupported' when the host refuses with PermissionDenied, as the TrUAPI stub does", async () => {
+    // The exact interrupt the device produced: a SubscriptionError whose
+    // message says nothing and whose typed reason carries the answer.
+    const refusal = Object.assign(new Error("Subscription interrupted"), {
+      name: "SubscriptionError",
+      reason: { tag: "Domain", value: { tag: "V1", value: { tag: "PermissionDenied" } } },
+    });
+    const h = fakeHost((_onBalance, interrupt) => interrupt(refusal));
+    await expect(probeHostPayments(1000, { subscribeBalance: h.subscribeBalance })).resolves.toBe("unsupported");
+  });
+
+  it("keeps a real drop and a timeout as 'offline'", async () => {
+    const drop = fakeHost((_onBalance, interrupt) => interrupt({ name: "PaymentBalanceErr::Unknown" }));
+    await expect(probeHostPayments(1000, { subscribeBalance: drop.subscribeBalance })).resolves.toBe("offline");
+    const silent = fakeHost(() => {});
+    await expect(probeHostPayments(20, { subscribeBalance: silent.subscribeBalance })).resolves.toBe("offline");
+  });
+
+  it("recognises the host's 'not supported' wording too", () => {
+    expect(isPaymentsUnsupported({ reason: "Payments are not supported in dot.li" })).toBe(true);
+    expect(isPaymentsUnsupported("Unsupported")).toBe(true);
+    expect(isPaymentsUnsupported({ name: "PaymentBalanceErr::Unknown" })).toBe(false);
   });
 });
 

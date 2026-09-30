@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useAccount } from "@/lib/web3";
-import { isInHost } from "@/lib/host/detect";
+import { awaitHostRuntime, isInHost } from "@/lib/host/detect";
 import { resumePendingTopUpWatches } from "@/lib/payments/coinage/topup-watcher";
 
 /**
@@ -17,8 +17,14 @@ export function TopUpWatcherBoot() {
 
   useEffect(() => {
     if (!account || !isInHost()) return;
-    resumePendingTopUpWatches().catch((err) => {
-      console.warn("[TopUpWatcher] resume failed:", err);
+    void awaitHostRuntime().then((runtime) => {
+      // The watch rides on `subscribeTopUpStatus`, which only the codec-1
+      // host has. Sales left confirming by an earlier native-runtime launch
+      // are picked up again the next time the app runs on it.
+      if (runtime === "truapi") return;
+      resumePendingTopUpWatches().catch((err) => {
+        console.warn("[TopUpWatcher] resume failed:", err);
+      });
     });
   }, [account]);
 

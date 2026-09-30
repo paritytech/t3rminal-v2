@@ -21,10 +21,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  createPaymentManager,
-  createStatementStore,
-} from "@novasamatech/host-api-wrapper";
+import { createClaimHost, subscribeHostStatements } from "@/lib/host/payments";
 import { decryptStatementData } from "./ecies";
 
 import { detectHostEnvironment } from "@/lib/host";
@@ -238,9 +235,6 @@ export function useCoinagePayment(
         });
         const statementWaitStartedAt = performance.now();
 
-        const store = createStatementStore();
-        const manager = createPaymentManager();
-
         log(`armed: id=${id} amount=${expectedAmount} topic=0x${toHex(topic)} host=${env}`);
         if (env === "standalone") {
           // The host statement store + paymentTopUp(Coins) are host bridge calls.
@@ -259,28 +253,23 @@ export function useCoinagePayment(
         // fresh id, then follow the host's status reports to a terminal state.
         // The host drives the claim itself (across an app restart if need be)
         // and may show the merchant an acknowledgement sheet in the Polkadot
-        // app along the way (see ./claim.ts).
-        const claimHost: ClaimHost = {
-          topUp: (planck, keys, topUpId) =>
-            // trace_id = payment id ⇒ this claim correlates cross-system
-            // (payer / processor) in one Sentry trace. See e2e-correlation design.
-            withPaymentTrace(id, () =>
-              withSpan(
-                "coinage topUp",
-                "payment.coinage.topup",
-                () => manager.topUp(planck, { type: "coins", keys }, topUpId),
-                {
-                  "topup.registration": String(registrations),
-                  "topup.id": toHex(topUpId),
-                  "payment.id": id,
-                  "payment.topic": toHex(topic),
-                  "pay.role": "terminal",
-                  "pay.phase": "claimed",
-                },
-              ),
-            ),
-          subscribeTopUpStatus: (topUpId, onStatus) => manager.subscribeTopUpStatus(topUpId, onStatus),
-        };
+        // app along the way (see ./claim.ts). lib/host/payments picks the
+        // client for this launch's wire codec and bridges codec 2's single
+        // topUp call onto the same status contract.
+        const claimHost = await createClaimHost((call) =>
+          // trace_id = payment id ⇒ this claim correlates cross-system
+          // (payer / processor) in one Sentry trace. See e2e-correlation design.
+          withPaymentTrace(id, () =>
+            withSpan("coinage topUp", "payment.coinage.topup", call, {
+              "topup.registration": String(registrations),
+              "payment.id": id,
+              "payment.topic": toHex(topic),
+              "pay.role": "terminal",
+              "pay.phase": "claimed",
+            }),
+          ),
+        );
+        if (cancelled) return;
 
         const runClaim = async (claimed: ChequePayload) => {
           if (cancelled || claimInFlight) return;
@@ -358,7 +347,10 @@ export function useCoinagePayment(
               requestedAmount: claimed.amount,
               partial,
               finalized,
-              topUpId: topUpIdToHex(outcome.topUpId),
+              // Codec 2 gives no id to follow afterwards. An empty id is what
+              // keeps the sale out of "confirming" and away from the finality
+              // watcher — neither could ever settle it (lib/host/payments).
+              topUpId: claimHost.trackable ? topUpIdToHex(outcome.topUpId) : "",
               coinCount: claimed.coins.length,
               timestamp: Number(claimed.timestamp),
             });
@@ -402,7 +394,7 @@ export function useCoinagePayment(
         // reconnect). If that happens we must re-establish it, otherwise the
         // terminal would silently stop listening and spin forever.
         const subscribeOnce = () => {
-          const sub = store.subscribe({ matchAny: [topic] }, (page) => {
+          const sub = subscribeHostStatements(topic, (page) => {
             if (cancelled || processed) return;
             log(
               `page: ${page.statements.length} statement(s), isComplete=${page.isComplete}`,
