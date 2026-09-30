@@ -1,8 +1,9 @@
 /**
- * Receipt QR is a W3sPay save-receipt deeplink (not the legacy JSON envelope).
- * These pin the wire contract the W3sPay reader parses: short query keys in the
- * URL fragment, repeated `i` items as `name|quantity|unitPrice`, and the `+`/%XX
- * encoding `URLSearchParams` produces on both ends.
+ * Receipt QR is a save-receipt deeplink into the Pocket Receipts product (not
+ * the legacy JSON envelope). These pin the wire contract its reader parses:
+ * short query keys on the `/r` route, repeated `i` items as
+ * `name|quantity|unitPrice`, and the `+`/%XX encoding `URLSearchParams`
+ * produces on both ends.
  */
 
 import { describe, expect, it } from "vitest";
@@ -10,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildReceiptDeeplink,
   SAVE_RECEIPT_DEEPLINK_HOST,
+  SAVE_RECEIPT_DEEPLINK_PATH,
   type ReceiptData,
 } from "@/lib/receipts/receipt-generator";
 import type { BusinessProfile } from "@/lib/config/business";
@@ -40,23 +42,28 @@ const data: ReceiptData = {
 
 const ts = new Date("2026-06-09T21:33:27.508Z");
 
-function fragmentParams(url: string): URLSearchParams {
-  const u = new URL(url);
-  return new URLSearchParams(u.hash.slice(u.hash.indexOf("?") + 1));
+function queryParams(url: string): URLSearchParams {
+  return new URL(url).searchParams;
 }
 
 describe("buildReceiptDeeplink", () => {
-  it("emits a save-receipt fragment deeplink with the short-key contract", () => {
+  it("targets the Pocket Receipts product by default", () => {
+    expect(SAVE_RECEIPT_DEEPLINK_HOST).toBe("receipts-pocket.paseo");
+    expect(SAVE_RECEIPT_DEEPLINK_PATH).toBe("/r");
+  });
+
+  it("emits a save-receipt deeplink on /r with the short-key contract", () => {
     const url = buildReceiptDeeplink(data, business, ts);
     expect(
-      url.startsWith(`polkadotapp://${SAVE_RECEIPT_DEEPLINK_HOST}/#/save-receipt?`),
+      url.startsWith(`polkadotapp://${SAVE_RECEIPT_DEEPLINK_HOST}/r?`),
     ).toBe(true);
 
     const u = new URL(url);
-    expect(u.pathname).toBe("/");
-    expect(u.hash.startsWith("#/save-receipt?")).toBe(true);
+    expect(u.host).toBe(SAVE_RECEIPT_DEEPLINK_HOST);
+    expect(u.pathname).toBe("/r");
+    expect(u.hash).toBe("");
 
-    const q = fragmentParams(url);
+    const q = queryParams(url);
     expect(q.get("v")).toBe("1");
     expect(q.get("id")).toBe("01KTQ4VZJMGY2SKYNPDTTFJ034");
     expect(q.get("a")).toBe("14.50");
@@ -95,7 +102,7 @@ describe("buildReceiptDeeplink", () => {
       { name: "", taxRate: 0, currency: "CASH" },
       ts,
     );
-    const q = fragmentParams(url);
+    const q = queryParams(url);
     expect(q.has("id")).toBe(false);
     expect(q.has("bn")).toBe(false);
     expect(q.has("i")).toBe(false);
@@ -105,15 +112,15 @@ describe("buildReceiptDeeplink", () => {
   });
 
   it("carries the tip as `tp` while `a` stays the grand total", () => {
-    const q = fragmentParams(buildReceiptDeeplink({ ...data, tip: "2.50" }, business, ts));
+    const q = queryParams(buildReceiptDeeplink({ ...data, tip: "2.50" }, business, ts));
     expect(q.get("tp")).toBe("2.50");
     expect(q.get("a")).toBe("14.50");
   });
 
   it("omits `tp` when there is no tip (absent or zero)", () => {
-    expect(fragmentParams(buildReceiptDeeplink(data, business, ts)).has("tp")).toBe(false);
+    expect(queryParams(buildReceiptDeeplink(data, business, ts)).has("tp")).toBe(false);
     expect(
-      fragmentParams(buildReceiptDeeplink({ ...data, tip: "0.00" }, business, ts)).has("tp"),
+      queryParams(buildReceiptDeeplink({ ...data, tip: "0.00" }, business, ts)).has("tp"),
     ).toBe(false);
   });
 });
