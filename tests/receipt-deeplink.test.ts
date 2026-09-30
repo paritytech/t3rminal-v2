@@ -48,7 +48,7 @@ function queryParams(url: string): URLSearchParams {
 
 describe("buildReceiptDeeplink", () => {
   it("targets the Pocket Receipts product by default", () => {
-    expect(SAVE_RECEIPT_DEEPLINK_HOST).toBe("pocketreceipts01.paseo");
+    expect(SAVE_RECEIPT_DEEPLINK_HOST).toBe("receipts-pocket.paseo");
     expect(SAVE_RECEIPT_DEEPLINK_PATH).toBe("/r");
   });
 
